@@ -1,0 +1,60 @@
+@ Subroutine v_hex will dislay a 32-bit register in binary digits
+@ R0: contains a number to be displayed in hexidecimal
+@ R2: Number of nibbles to be dislayed (from right side of R0)
+@ Note: If R2=0 or R2>8, leading zeroes (on left) will not be dislayed
+@ LR: contains the return address
+@ All registers contents will be preserved.
+   
+    .global v_hex
+v_hex:    push    {R0-R7}        @ Save contents of registers R0 through R7
+    mov     R3,R0        @ R3 with hold a copy of input word to be displayed
+    mov    R4,#0b1111    @ Use to mask of bits at a time for display
+    mov     R6,R2,lsl#2    @ Load numer of bits to display (4 bits for each nibble)
+
+@ set up registers for calling Linux to dislay 1 character on the display monitor
+
+    ldr     R5,=pre        @ Pointer to the "0x" string of ASCII characters.
+        mov     R2,#2
+        mov     R0,#1
+    mov    R7,#4
+    mov    R1,R5
+    svc    0        @ Linux service command code to write string.
+       
+
+
+    ldr    R5,=dig        @ Pointer to the "012...EF" string of ASCII characters
+    mov     R2,#1        @ Number of characters to be displayed at a time
+    mov    R0,#1        @ Code for stdout (standard output i.e. monitor)
+    mov    R7,#4        @ Linux service command code to write to string
+
+@ Determine number of bits to be output (R6 has that value if it's between 4 and 32)   
+   
+    cmp     R6,#32        @ Test error value enteres (there's only 32 bits in a register)
+        movhi     R6,#0       @ Default to omitting leading zeroes if value >32
+        subs     R6,#4        @ Set R6 point to "right" side of the first nibble to output
+        bge     nxthex        @ If proper range, then skip over finding first non-zero
+
+   
+
+@ Skip over leading zeroes (on left)
+    mov    R6,#28
+@ Loop through groups of 4-bit nibbles and output each to stdout (monitor)
+
+nxthex: and     R1,R4,R3,LSR R6    @ Select next hex digit (0 .. F) to be displayed
+       
+        subs     R6,#4        @ Decrement number of bits remaining to display
+        bgt     nxthex        @ Go display next nibble until max bit-count reached
+    add     R1,R5
+       svc    0
+    bge    nxthex
+
+
+    pop {R0-R7}        @ Restore saved register contents
+       bx LR            @ Return to the calling program
+
+
+    .data
+dig:    .ascii    "0123456789"       
+    .ascii    "ABCDEF"
+pre:    .ascii     "0x"   
+    .end

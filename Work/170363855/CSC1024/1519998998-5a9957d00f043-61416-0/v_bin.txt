@@ -1,0 +1,33 @@
+	.global v_bin
+
+v_bin:	push 	{R0-R8} @ the infomation which is in R0 to R8 is being saved here
+	clz 	R8,R0 @ The command counts the amount of leading 0s and returns the value from 8 to 0 
+	mov	R6,#31 @ Number of bits to display (-1)
+	SUB     R6,R8 @ This command subtracts the second operant from the first
+	cmp	R6,#31 @ test error value entered (bit 31 is leftmost bit)
+	movhi	R6,#0 @ If bad range, default to displaying only 1 bit.
+	mov	R3,R0 @ R3 will hold a copy of input word to be displayed.
+	mov	R4,#1 @ Used to mask off 1 bit at a time for display
+
+	ldr	R5,=dig @ Pointer to the "01" string of ASCII charcters 
+	mov	R0,#1 @ Code for stdout (standard output)
+	mov	R7,#4 @ Linux service command code to write string.
+
+	ldr R1,= fix @ Pointer to the "0b" string of ASCII charcters 
+	mov R2,#2 @
+	svc 0 @ Linux service command code to write string.
+	mov R2,#1 @ Number charcters to be displayed at a time
+
+nxtbit: and	R1,R4,R3,LSR R6 @ Select next 0 or 1 to be displayed
+	add	R1,R5 @ Set R1 pointing to "0" or 1 in memory
+	svc	0 @ Linux service command code to write string
+	subs	R6,#1 @ Decrement number of bits remaning to display
+	bge	nxtbit @ Go display next bit until all 32 displayed
+
+	pop	{R0-R8} @ restore saved register contents
+	bx	LR @ return to the calling program
+	
+	.data 
+dig:	.ascii	"01" @ASCII string of binary didgits
+fix:    .ascii	"0b" @ASCII string of "0b"
+	.end
